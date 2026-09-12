@@ -253,6 +253,56 @@ a {
   </head>
   <body>
       <div class="cursor"></div>
+
+      <style>
+      #calc{position:fixed;inset:0;z-index:2147483647;background:#1c1c1e;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#fff;user-select:none;cursor:default}
+      #calc.hidden{display:none}
+      .calc-window{width:min(92vw,340px);background:#2c2c2e;border:1px solid #48484a;border-radius:14px;padding:12px 12px 16px;box-shadow:0 18px 40px rgba(0,0,0,.55)}
+      .calc-bar{display:flex;justify-content:space-between;align-items:center;padding:0 4px 8px;color:#8e8e93;font-size:12px;font-weight:600}
+      .calc-dots span{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+      .calc-dots .r{background:#ff5f57}.calc-dots .y{background:#febc2e}.calc-dots .g{background:#28c840}
+      .calc-display{background:#0d0d0f;border-radius:10px;padding:20px 14px;font-size:38px;text-align:right;overflow:hidden;white-space:nowrap;margin-bottom:12px;font-variant-numeric:tabular-nums;min-height:70px;line-height:1.2;display:flex;align-items:center;justify-content:flex-end}
+      .calc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+      .calc-grid button{font-size:20px;padding:16px 0;border:none;border-radius:10px;cursor:pointer;background:#48484a;color:#fff;transition:filter .1s;font-family:inherit}
+      .calc-grid button:hover{filter:brightness(1.25)}
+      .calc-grid button:active{filter:brightness(.9)}
+      .calc-grid button.op{background:#ff9f0a;color:#fff;font-size:24px}
+      .calc-grid button.fn{background:#636366;color:#cfcfcf}
+      .calc-grid button.eq{background:#ff9f0a;color:#fff;grid-row:span 2;font-size:30px}
+      </style>
+
+      <div id="calc">
+        <div class="calc-window">
+          <div class="calc-bar">
+            <span class="calc-dots"><span class="r"></span><span class="y"></span><span class="g"></span></span>
+            <span>Calculator</span>
+          </div>
+          <div class="calc-display" id="calcDisplay">0</div>
+          <div class="calc-grid">
+            <button class="fn" data-k="C">C</button>
+            <button class="fn" data-k="⌫">⌫</button>
+            <button class="fn" data-k="%">%</button>
+            <button class="op" data-k="÷">÷</button>
+            <button data-k="7">7</button>
+            <button data-k="8">8</button>
+            <button data-k="9">9</button>
+            <button class="op" data-k="×">×</button>
+            <button data-k="4">4</button>
+            <button data-k="5">5</button>
+            <button data-k="6">6</button>
+            <button class="op" data-k="−">−</button>
+            <button data-k="1">1</button>
+            <button data-k="2">2</button>
+            <button data-k="3">3</button>
+            <button class="op" data-k="+">+</button>
+            <button class="fn" data-k="±">±</button>
+            <button data-k="0">0</button>
+            <button data-k=".">.</button>
+            <button class="eq" data-k="=">=</button>
+          </div>
+        </div>
+      </div>
+
       <div class="content-side">
           <h1 class="typewriter"><span id="cursor"></span></h1>
           <h2>version 1.0 (release build)</h2>
@@ -414,5 +464,69 @@ function applyStoredTheme() {
 
 window.addEventListener('load', applyStoredTheme);
 </script>
+  </body>
+      <script>
+      (function(){
+        var calc=document.getElementById("calc");
+        var disp=document.getElementById("calcDisplay");
+        var expr="";
+
+        function trimNum(n){
+          if(Math.abs(n)>=1e12||(Math.abs(n)<1e-9&&n!==0)) return n.toExponential(8);
+          if(Number.isInteger(n)) return String(n);
+          var s=(+n.toFixed(10)).toString();
+          return s;
+        }
+        function show(t){ disp.textContent=t; }
+        function input(k){
+          if(expr==="Error") expr="";
+          var t=expr+k;
+          if(/^[-0-9.+\u00d7\u00f7\u2212]*$/.test(t) && t.length<=26) expr=t;
+          show(expr||"0");
+        }
+        function compute(){
+          if(expr==="1+1"){ reveal(); return; }
+          var s=expr.replace(/\u00d7/g,"*").replace(/\u00f7/g,"/").replace(/\u2212/g,"-");
+          var v;
+          try{ v=Function('"use strict";return('+s+')')(); }catch(e){ v=NaN; }
+          if(typeof v==="number"&&isFinite(v)){ expr=trimNum(v); show(expr); }
+          else { expr="Error"; show("Error"); }
+        }
+        function back(){ expr=expr.slice(0,-1); show(expr||"0"); }
+        function clear(){ expr=""; show("0"); }
+        function sign(){ if(/^-?\d+(\.\d+)?$/.test(expr)){ expr=expr[0]==="-"?"-"+expr.slice(1):'-'+expr; show(expr); } }
+        function pct(){ if(/^-?\d+(\.\d+)?$/.test(expr)){ expr=trimNum(parseFloat(expr)/100); show(expr); } }
+        function reveal(){ calc.classList.add("hidden"); document.title="Home | Yazan's Unblocked Center"; }
+        function cloak(){ calc.classList.remove("hidden"); document.title="Calculator"; }
+
+        document.addEventListener("click", function(e){
+          var b=e.target.closest("button[data-k]");
+          if(!b||!calc.contains(b)) return;
+          var k=b.getAttribute("data-k");
+          if(k==="=") compute();
+          else if(k==="C") clear();
+          else if(k==="\u232b") back();
+          else if(k==="\u00b1") sign();
+          else if(k==="%") pct();
+          else input(k);
+        });
+
+        document.addEventListener("keydown", function(e){
+          var k=e.key;
+          if(/^[0-9]$/.test(k)) { input(k); return; }
+          if(k===".") input(k);
+          else if(k==="+"&&!e.shiftKey) input("+");
+          else if(k==="-") input("-");
+          else if(k==="*") input("\u00d7");
+          else if(k==="/") input("\u00f7");
+          else if(k==="="||k==="Enter"){ e.preventDefault(); compute(); }
+          else if(k==="Backspace") back();
+          else if(k==="Escape"){ if(calc.classList.contains("hidden")) reveal(); else cloak(); e.preventDefault(); }
+          else if(k==="c"||k==="C") clear();
+        });
+
+        document.title="Calculator";
+      })();
+      </script>
   </body>
 </html>
